@@ -1,6 +1,4 @@
-package tasks;
-
-import java.util.Scanner;
+package Tasks;
 
 // 1. Define the interface
 interface Shape {
