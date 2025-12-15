@@ -1,0 +1,265 @@
+package BankSystemProject;
+
+import java.util.*;
+
+/* =========================
+   MAIN APPLICATION
+========================= */
+public class SimpleBankingApp {
+
+    private static Scanner input = new Scanner(System.in);
+    private static Map<String, BankUser> userDatabase = new HashMap<>();
+    private static AdminUser adminAccount;
+
+    public static void main(String[] args) {
+        seedData();
+        launchSystem();
+    }
+
+    private static void seedData() {
+        userDatabase.put("alpha", new BankUser("alpha", "1111", "Alex Moreno", 25000));
+        userDatabase.put("bravo", new BankUser("bravo", "2222", "Bianca Cruz", 85000));
+        userDatabase.put("charlie", new BankUser("charlie", "3333", "Carl Santos", 120000));
+        userDatabase.put("delta", new BankUser("delta", "4444", "Dana Flores", 42000));
+
+        adminAccount = new AdminUser("root", "root123");
+    }
+
+    private static void launchSystem() {
+        while (true) {
+            System.out.println("\n========== SIMPLE BANK ==========");
+            System.out.println("1. Client Login");
+            System.out.println("2. Administrator Login");
+            System.out.println("3. Exit");
+            System.out.print("Select option: ");
+
+            int choice = input.nextInt();
+            input.nextLine();
+
+            switch (choice) {
+                case 1 -> clientLogin();
+                case 2 -> adminLogin();
+                case 3 -> {
+                    System.out.println("System shutting down. Goodbye!");
+                    return;
+                }
+                default -> System.out.println("Invalid selection.");
+            }
+        }
+    }
+
+    /* =========================
+       CLIENT SECTION
+    ========================= */
+    private static void clientLogin() {
+        System.out.print("Username: ");
+        String user = input.nextLine();
+        System.out.print("Password: ");
+        String pass = input.nextLine();
+
+        BankUser account = userDatabase.get(user);
+        if (account != null && account.verifyPassword(pass)) {
+            clientMenu(account);
+        } else {
+            System.out.println("Login failed.");
+        }
+    }
+
+    private static void clientMenu(BankUser user) {
+        while (true) {
+            System.out.println("\n--- Client Dashboard ---");
+            System.out.println("Welcome, " + user.getOwnerName());
+            System.out.println("1. Balance Inquiry");
+            System.out.println("2. Deposit");
+            System.out.println("3. Withdraw");
+            System.out.println("4. Transfer");
+            System.out.println("5. Account Info");
+            System.out.println("6. Logout");
+            System.out.print("Choice: ");
+
+            int option = input.nextInt();
+            input.nextLine();
+
+            switch (option) {
+                case 1 -> System.out.printf("Balance: ₱%.2f%n", user.getBalance());
+                case 2 -> {
+                    System.out.print("Deposit amount: ");
+                    user.deposit(input.nextDouble());
+                }
+                case 3 -> {
+                    System.out.print("Withdraw amount: ");
+                    if (!user.withdraw(input.nextDouble()))
+                        System.out.println("Transaction failed.");
+                }
+                case 4 -> handleTransfer(user);
+                case 5 -> user.printDetails();
+                case 6 -> {
+                    System.out.println("Logged out.");
+                    return;
+                }
+                default -> System.out.println("Invalid option.");
+            }
+        }
+    }
+
+    private static void handleTransfer(BankUser sender) {
+        System.out.print("Recipient username: ");
+        String target = input.nextLine();
+        BankUser receiver = userDatabase.get(target);
+
+        if (receiver == null) {
+            System.out.println("Recipient not found.");
+            return;
+        }
+
+        System.out.print("Amount: ");
+        double amount = input.nextDouble();
+
+        if (sender.withdraw(amount)) {
+            receiver.deposit(amount);
+            System.out.println("Transfer successful.");
+        } else {
+            System.out.println("Transfer failed.");
+        }
+    }
+
+    /* =========================
+       ADMIN SECTION
+    ========================= */
+    private static void adminLogin() {
+        System.out.print("Admin username: ");
+        String u = input.nextLine();
+        System.out.print("Admin password: ");
+        String p = input.nextLine();
+
+        if (adminAccount.authenticate(u, p)) {
+            adminMenu();
+        } else {
+            System.out.println("Access denied.");
+        }
+    }
+
+    private static void adminMenu() {
+        while (true) {
+            System.out.println("\n--- Admin Control Panel ---");
+            System.out.println("1. View All Clients");
+            System.out.println("2. View Single Client");
+            System.out.println("3. Create New Account");
+            System.out.println("4. System Summary");
+            System.out.println("5. Logout");
+            System.out.print("Choice: ");
+
+            int choice = input.nextInt();
+            input.nextLine();
+
+            switch (choice) {
+                case 1 -> adminAccount.displayAllUsers(userDatabase);
+                case 2 -> {
+                    System.out.print("Username: ");
+                    BankUser u = userDatabase.get(input.nextLine());
+                    if (u != null) u.printDetails();
+                    else System.out.println("Account not found.");
+                }
+                case 3 -> createAccount();
+                case 4 -> adminAccount.generateSummary(userDatabase);
+                case 5 -> {
+                    System.out.println("Admin logged out.");
+                    return;
+                }
+                default -> System.out.println("Invalid choice.");
+            }
+        }
+    }
+
+    private static void createAccount() {
+        System.out.print("Username: ");
+        String u = input.nextLine();
+        System.out.print("Password: ");
+        String p = input.nextLine();
+        System.out.print("Full Name: ");
+        String n = input.nextLine();
+
+        double startingBalance = 5000 + new Random().nextInt(20000);
+        userDatabase.put(u, new BankUser(u, p, n, startingBalance));
+        System.out.println("Account created successfully.");
+    }
+}
+
+/* =========================
+   BANK USER CLASS
+========================= */
+class BankUser {
+    private String username;
+    private String password;
+    private String ownerName;
+    private double balance;
+    private String accountId;
+
+    public BankUser(String username, String password, String ownerName, double balance) {
+        this.username = username;
+        this.password = password;
+        this.ownerName = ownerName;
+        this.balance = balance;
+        this.accountId = "ACC-" + (100000 + new Random().nextInt(900000));
+    }
+
+    public boolean verifyPassword(String input) {
+        return password.equals(input);
+    }
+
+    public void deposit(double amount) {
+        if (amount > 0) balance += amount;
+    }
+
+    public boolean withdraw(double amount) {
+        if (amount > 0 && balance >= amount) {
+            balance -= amount;
+            return true;
+        }
+        return false;
+    }
+
+    public void printDetails() {
+        System.out.println("\nAccount ID: " + accountId);
+        System.out.println("Owner: " + ownerName);
+        System.out.printf("Balance: ₱%.2f%n", balance);
+    }
+
+    public double getBalance() { return balance; }
+    public String getOwnerName() { return ownerName; }
+    public String getUsername() { return username; }
+}
+
+/* =========================
+   ADMIN CLASS
+========================= */
+class AdminUser {
+    private String username;
+    private String password;
+
+    public AdminUser(String u, String p) {
+        username = u;
+        password = p;
+    }
+
+    public boolean authenticate(String u, String p) {
+        return username.equals(u) && password.equals(p);
+    }
+
+    public void displayAllUsers(Map<String, BankUser> users) {
+        System.out.println("\n--- All Bank Accounts ---");
+        for (BankUser u : users.values()) {
+            System.out.printf("%s | %s | ₱%.2f%n",
+                    u.getUsername(), u.getOwnerName(), u.getBalance());
+        }
+    }
+
+    public void generateSummary(Map<String, BankUser> users) {
+        double total = 0;
+        for (BankUser u : users.values()) {
+            total += u.getBalance();
+        }
+        System.out.println("\nTotal Accounts: " + users.size());
+        System.out.printf("Total Bank Holdings: ₱%.2f%n", total);
+    }
+}
